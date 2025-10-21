@@ -7,21 +7,19 @@ pyautogui.FAILSAFE = False
 
 def move_left_small():
     pyautogui.press('left')
-    pyautogui.press('left')
 
 def move_right_small():
     pyautogui.press('right')
-    pyautogui.press('right')
 
 def move_left(amount, once = 0.0244, extra = 0.16005):
-    l = [0.02421, 0.1648, 0.3045, 0.46445, 0.6235, 0.73]
+    l = [0.02421, 0.1648, 0.3045, 0.45, 0.61]
     pyautogui.keyDown('left')
     # time.sleep(once + (amount-1) * extra)
     time.sleep(l[amount-1])
     pyautogui.keyUp('left')
 
 def move_right(amount, once = 0.0244, extra = 0.16005):
-    l = [0.02421, 0.1648, 0.3045, 0.46445, 0.6235, 0.73]
+    l = [0.02421, 0.1648, 0.3045, 0.45, 0.61]
     pyautogui.keyDown('right')
     time.sleep(l[amount-1])
     pyautogui.keyUp('right')
@@ -49,18 +47,20 @@ def main():
     stop_loop = False
     cnt = 0
     tol = 10
-    move_tol = 360
-    step_tol = 30
+    move_tol = 395
+    step_tol = 20
     f=open('contour-logs.txt','w')
     start_game()
     
     five = False
     four = False
+    pre_four = False
+    five_sm = False
     values = None
 
     while not stop_loop:
         cnt += 1
-        distances, values, player_dist = contour_detection_visualization_mss(f=f,ii=cnt,pre=values)
+        distances, values, player_dist, sm_info = contour_detection_visualization_mss(f=f,ii=cnt,pre=values)
         f.flush()
         if(distances == -2):
             f.write("\n")
@@ -94,7 +94,7 @@ def main():
                 maxd = max(maxd, distance)
                 mind = min(mind, distance)
 
-        print(dist_merge)
+        # print(dist_merge)
 
         dist_merge[maxd].sort(key=lambda x:min(x, 6-x))
         position = dist_merge[maxd][0]
@@ -106,61 +106,81 @@ def main():
         if(len(dist_merge[maxd]) == 1 and len(dist_merge) >= 3 and len(dist_merge[mind]) == 1):
             four = True
 
-        print(cnt, five, four)
+        # print(cnt, five, four)
 
         if position == 0:
             left, right = player_dist
-            if(abs(left-right) <= step_tol):
+            if(abs(left-right) <= step_tol or five_sm):
                 f.write(" nothing0\n")
-            else:
+                pre_non = True
+            elif(not pre_four):
                 if(left > right):
                     move_right_small()
                     f.write(" right sm\n")
                 else:
                     move_left_small()
                     f.write(" left sm\n")
+                pre_non = False
+            else:
+                f.write(" nothing0\n")
+                pre_non = True
             five = four = False
+            pre_four = False
         elif position <= 2:
+            pre_non = False
             if(five):
-                # move_right_small()
-                # f.write(" sm")
                 position = 5
-                five = False
+                five = four = False
+                pre_four = False
             elif(four):
                 move_left(6-position)
                 f.write(f" left {6-position}\n")
-                four = False
+                five = four = False
+                if(pre_four):
+                    pre_four = False
+                else:
+                    pre_four = True
                 continue
 
             if(position in [2,3]):
                 if(orig_distances[1] <= move_tol and position == 2):
                     f.write(" nothing\n")
                     continue
-                if(max(orig_distances[1], orig_distances[2]) <= move_tol and position == 3):
+                if(min(orig_distances[1], orig_distances[2]) <= move_tol and position == 3):
                     f.write(" nothing\n")
                     continue
+                if(orig_distances[1] > move_tol and abs(orig_distances[1]-orig_distances[2]) >= 200 and position == 3):
+                    position = 1
+                pre_four = False
 
             move_right(position)
             f.write(f" right {position}\n")
         else:
+            pre_non = False
             if(five):
-                # move_left_small()
-                # f.write(" sm")
                 position = 1
-                five = False
+                five = four = False
+                pre_four = False
             elif(four):
                 move_right(position)
                 f.write(f" right {position}\n")
-                four = False
+                five = four = False
+                if(pre_four):
+                    pre_four = False
+                else:
+                    pre_four = True
                 continue
 
             if(6-position in [2,3]):
                 if(orig_distances[5] <= move_tol and 6-position == 2):
                     f.write(" nothing\n")
                     continue
-                if(max(orig_distances[5], orig_distances[4]) <= move_tol and 6-position == 3):
+                if(min(orig_distances[5], orig_distances[4]) <= move_tol and 6-position == 3):
                     f.write(" nothing\n")
                     continue
+                if(orig_distances[5] > move_tol and abs(orig_distances[5]-orig_distances[4]) >= 200 and 6-position == 3):
+                    position = 5
+                pre_four = False
 
             move_left(6-position)
             f.write(f" left {6-position}\n")
